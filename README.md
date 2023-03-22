@@ -2,6 +2,8 @@
 
 The project evaluates darknet yolov4 using mAP metric from [Object-Detection-Metrics](https://github.com/rafaelpadilla/Object-Detection-Metrics.git).
 
+commit dcb285e7dea7e73d9480937d58de0e9bdfc20051
+
 ## Installation
 
 Clone the project and submodules:
