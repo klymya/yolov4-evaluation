@@ -51,6 +51,8 @@ import os
 import shutil
 import sys
 
+import numpy as np
+
 import _init_paths
 from BoundingBox import BoundingBox
 from BoundingBoxes import BoundingBoxes
@@ -277,6 +279,13 @@ parser.add_argument('-np',
                     dest='showPlot',
                     action='store_false',
                     help='no plot is shown during execution')
+parser.add_argument('-b',
+                    '--beta-f',
+                    dest='betaF',
+                    type=float,
+                    default=1.0,
+                    metavar='',
+                    help='beta for f_beta score')
 args = parser.parse_args()
 
 iouThreshold = args.iouThreshold
@@ -297,6 +306,7 @@ else:
 # Coordinates types
 gtCoordType = ValidateCoordinatesTypes(args.gtCoordinates, '-gtCoordinates', errors)
 detCoordType = ValidateCoordinatesTypes(args.detCoordinates, '-detCoordinates', errors)
+betaF = args.betaF
 imgSize = (0, 0)
 if gtCoordType == CoordinatesType.Relative:  # Image size is required
     imgSize = ValidateImageSize(args.imgSize, '-imgsize', '-gtCoordinates', errors)
@@ -371,6 +381,13 @@ allClasses.sort()
 evaluator = Evaluator()
 acc_AP = 0
 validClasses = 0
+acc_total_positives = 0
+acc_f1 = 0
+acc_fbeta = 0
+acc_weighted_f1 = 0
+acc_weighted_fbeta = 0
+acc_total_tp = 0
+acc_total_fp = 0
 
 # Plot Precision x Recall curve
 detections = evaluator.PlotPrecisionRecallCurve(
@@ -380,12 +397,15 @@ detections = evaluator.PlotPrecisionRecallCurve(
     showAP=True,  # Show Average Precision in the title of the plot
     showInterpolatedPrecision=False,  # Don't plot the interpolated precision curve
     savePath=savePath,
-    showGraphic=showPlot)
+    showGraphic=showPlot,
+    betaF=betaF)
 
 f = open(os.path.join(savePath, 'results.txt'), 'w')
 f.write('Object Detection Metrics\n')
 f.write('https://github.com/rafaelpadilla/Object-Detection-Metrics\n\n\n')
 f.write('Average Precision (AP), Precision and Recall per class:')
+
+f.write('\n\nbeta: %.2f' % betaF)
 
 # each detection is a class
 for metricsPerClass in detections:
@@ -400,25 +420,75 @@ for metricsPerClass in detections:
     total_FP = metricsPerClass['total FP']
     confidence = metricsPerClass['confidence']
     f1_score = metricsPerClass['f1_score']
+    f_beta_score = metricsPerClass['f_beta_score']
 
     if totalPositives > 0:
         validClasses = validClasses + 1
         acc_AP = acc_AP + ap
+        acc_f1 += f1_score[-1]
+        acc_fbeta += f_beta_score[-1]
+        
+        acc_total_positives += totalPositives
+        acc_total_tp += total_TP
+        acc_total_fp += total_FP
+        acc_weighted_f1 += f1_score[-1] * totalPositives
+        acc_weighted_fbeta += f_beta_score[-1] * totalPositives
+
         prec = ['%.2f' % p for p in precision]
         rec = ['%.2f' % r for r in recall]
         conf = ['%.2f' % c for c in confidence]
         fscore = ['%.2f' % f for f in f1_score]
+        fbetascore = ['%.2f' % f for f in f_beta_score]
+        
         ap_str = "{0:.2f}%".format(ap * 100)
+        f1_str = "{0:.2f}%".format(f1_score[-1] * 100)
+        fbeta_str = "{0:.2f}%".format(f_beta_score[-1] * 100)
         # ap_str = "{0:.4f}%".format(ap * 100)
         print('AP: %s (%s)' % (ap_str, cl))
         f.write('\n\nClass: %s' % cl)
-        f.write('\nAP: %s' % ap_str)
-        f.write('\nPrecision : %s' % prec)
-        f.write('\nRecall    : %s' % rec)
-        f.write('\nConfidence: %s' % conf)
-        f.write('\nF1 score  : %s' % fscore)
+        f.write('\nAP          : %s' % ap_str)
+        f.write('\nf1 score    : %s' % f1_str)
+        f.write('\nf_beta score: %s' % fbeta_str)
+
+        f.write('\nPrecision    : %s' % prec)
+        f.write('\nRecall       : %s' % rec)
+        f.write('\nConfidence   : %s' % conf)
+        f.write('\nF1 score     : %s' % fscore)
+        f.write('\nFbeta score  : %s' % fbetascore)
 
 mAP = acc_AP / validClasses
+
+macro_f1 = acc_f1 / validClasses
+macro_fbeta = acc_fbeta / validClasses
+
+weighted_f1 = acc_weighted_f1 / acc_total_positives
+weighted_fbeta = acc_weighted_fbeta / acc_total_positives
+
+rec = acc_total_tp / acc_total_positives
+prec = np.divide(acc_total_tp, (acc_total_fp + acc_total_tp))
+f1_score = 2 * prec * rec / (prec + rec + 1e-6)
+f_beta_score = (1 + betaF**2) * prec * rec / (betaF**2 * prec + rec + 1e-6)
+
 mAP_str = "{0:.2f}%".format(mAP * 100)
+macro_f1_str = "{0:.2f}%".format(macro_f1 * 100)
+macro_fbeta_str = "{0:.2f}%".format(macro_fbeta * 100)
+weighted_f1_str = "{0:.2f}%".format(weighted_f1 * 100)
+weighted_fbeta_str = "{0:.2f}%".format(weighted_fbeta * 100)
+global_f1_str = "{0:.2f}%".format(f1_score * 100)
+global_fbeta_str = "{0:.2f}%".format(f_beta_score * 100)
+
 print('mAP: %s' % mAP_str)
-f.write('\n\n\nmAP: %s' % mAP_str)
+print('macro avgf1: %s' % macro_f1_str)
+print('macro avg f_beta: %s' % macro_fbeta_str)
+print('weighted avg f1: %s' % weighted_f1_str)
+print('weighted avg f_beta: %s' % weighted_fbeta_str)
+print('global avg f1: %s' % global_f1_str)
+print('global avg f_beta: %s' % global_fbeta_str)
+
+f.write('\n\n\nmAP                : %s' % mAP_str)
+f.write('\nmacro avg f1       : %s' % macro_f1_str)
+f.write('\nmacro avg f_beta   : %s' % macro_fbeta_str)
+f.write('\nweighted avg f1    : %s' % weighted_f1_str)
+f.write('\nweighted avg f_beta: %s' % weighted_fbeta_str)
+f.write('\nglobal avg f1      : %s' % global_f1_str)
+f.write('\nglobal avg f_beta  : %s' % global_fbeta_str)

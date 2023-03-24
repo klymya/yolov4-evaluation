@@ -24,6 +24,7 @@ class Evaluator:
     def GetPascalVOCMetrics(self,
                             boundingboxes,
                             IOUThreshold=0.5,
+                            betaF=1.0,
                             method=MethodAveragePrecision.EveryPointInterpolation):
         """Get the metrics used by the VOC Pascal 2012 challenge.
         Get
@@ -32,6 +33,8 @@ class Evaluator:
             bounding boxes;
             IOUThreshold: IOU threshold indicating which detections will be considered TP or FP
             (default value = 0.5);
+            betaF: beta value for F_beta score, beta is chosen such that recall is considered beta
+            times as important as precision (default value = 1.0)
             method (default = EveryPointInterpolation): It can be calculated as the implementation
             in the official PASCAL VOC toolkit (EveryPointInterpolation), or applying the 11-point
             interpolatio as described in the paper "The PASCAL Visual Object Classes(VOC) Challenge"
@@ -130,6 +133,7 @@ class Evaluator:
             rec = acc_TP / npos
             prec = np.divide(acc_TP, (acc_FP + acc_TP))
             f1_score = 2 * prec * rec / (prec + rec + 1e-6)
+            f_beta_score = (1 + betaF**2) * prec * rec / (betaF**2 * prec + rec + 1e-6)
             # Depending on the method, call the right implementation
             if method == MethodAveragePrecision.EveryPointInterpolation:
                 [ap, mpre, mrec, ii] = Evaluator.CalculateAveragePrecision(rec, prec)
@@ -142,6 +146,7 @@ class Evaluator:
                 'precision': prec,
                 'recall': rec,
                 'f1_score': f1_score,
+                'f_beta_score': f_beta_score,
                 'AP': ap,
                 'interpolated precision': mpre,
                 'interpolated recall': mrec,
@@ -155,6 +160,7 @@ class Evaluator:
     def PlotPrecisionRecallCurve(self,
                                  boundingBoxes,
                                  IOUThreshold=0.5,
+                                 betaF=1.0,
                                  method=MethodAveragePrecision.EveryPointInterpolation,
                                  showAP=False,
                                  showInterpolatedPrecision=False,
@@ -167,6 +173,8 @@ class Evaluator:
             bounding boxes;
             IOUThreshold (optional): IOU threshold indicating which detections will be considered
             TP or FP (default value = 0.5);
+            betaF: beta value for F_beta score, beta is chosen such that recall is considered beta
+            times as important as precision (default value = 1.0)
             method (default = EveryPointInterpolation): It can be calculated as the implementation
             in the official PASCAL VOC toolkit (EveryPointInterpolation), or applying the 11-point
             interpolatio as described in the paper "The PASCAL Visual Object Classes(VOC) Challenge"
@@ -191,7 +199,7 @@ class Evaluator:
             dict['total TP']: total number of True Positive detections;
             dict['total FP']: total number of False Negative detections;
         """
-        results = self.GetPascalVOCMetrics(boundingBoxes, IOUThreshold, method)
+        results = self.GetPascalVOCMetrics(boundingBoxes, IOUThreshold, betaF, method)
         result = None
         # Each resut represents a class
         for result in results:
