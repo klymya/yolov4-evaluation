@@ -408,6 +408,7 @@ f.write('Average Precision (AP), Precision and Recall per class:')
 f.write('\n\nbeta: %.2f' % betaF)
 
 # each detection is a class
+print(f"| {'class':^30} | {'AP':^10} | {'f1':^10} | {'f_beta':^10} |")
 for metricsPerClass in detections:
 
     # Get metric values per each class
@@ -443,8 +444,7 @@ for metricsPerClass in detections:
         ap_str = "{0:.2f}%".format(ap * 100)
         f1_str = "{0:.2f}%".format(f1_score[-1] * 100)
         fbeta_str = "{0:.2f}%".format(f_beta_score[-1] * 100)
-        # ap_str = "{0:.4f}%".format(ap * 100)
-        print('AP: %s (%s)' % (ap_str, cl))
+        print(f"| {cl:<30} | {ap_str:>10} | {f1_str:>10} | {fbeta_str:>10} |")
         f.write('\n\nClass: %s' % cl)
         f.write('\nAP          : %s' % ap_str)
         f.write('\nf1 score    : %s' % f1_str)
@@ -477,13 +477,14 @@ weighted_fbeta_str = "{0:.2f}%".format(weighted_fbeta * 100)
 global_f1_str = "{0:.2f}%".format(f1_score * 100)
 global_fbeta_str = "{0:.2f}%".format(f_beta_score * 100)
 
-print('mAP: %s' % mAP_str)
-print('macro avgf1: %s' % macro_f1_str)
-print('macro avg f_beta: %s' % macro_fbeta_str)
-print('weighted avg f1: %s' % weighted_f1_str)
-print('weighted avg f_beta: %s' % weighted_fbeta_str)
-print('global avg f1: %s' % global_f1_str)
-print('global avg f_beta: %s' % global_fbeta_str)
+print()
+print(f'{"mAP":<20}: {mAP_str:>10}')
+print(f'{"macro avg f1":<20}: {macro_f1_str:>10}')
+print(f'{"macro avg f_beta":<20}: {macro_fbeta_str:>10}')
+print(f'{"weighted avg f1":<20}: {weighted_f1_str:>10}')
+print(f'{"weighted avg f_beta":<20}: {weighted_fbeta_str:>10}')
+print(f'{"global avg f1":<20}: {global_f1_str:>10}')
+print(f'{"global avg f_beta":<20}: {global_fbeta_str:>10}')
 
 f.write('\n\n\nmAP                : %s' % mAP_str)
 f.write('\nmacro avg f1       : %s' % macro_f1_str)

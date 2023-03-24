@@ -8,6 +8,7 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_W = 512
 DEFAULT_H = 512
 DEFAULT_TH = 0.25
+DEFAAULT_BETA_F = 1.0
 DEFAULT_PASCALVOC_PATH = os.path.join(DIR_PATH, os.pardir, "Object-Detection-Metrics", "pascalvoc.py")
 
 
@@ -56,6 +57,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out", required=True, help="Path to folder where save the results."
     )
+    parser.add_argument(
+        "--beta-f", type=float, default=DEFAAULT_BETA_F,
+        help='Beta value for F_beta score, beta is chosen such that recall is '\
+            f'considered beta times as important as precision. Default = {DEFAAULT_BETA_F}.'
+    )
     args = parser.parse_args()
     
     classes, test_file = get_classes_and_test_file(args.data_file)
@@ -91,7 +97,8 @@ if __name__ == "__main__":
     print("\n    RUN PASCALVOC\n")
     subprocess.run([
         "python3", args.pascalvoc, "-gt", tmp_gt, "-det", tmp_det, "-gtformat", "xywh", "-detformat", "xywh",
-        "-gtcoords", "rel", "-detcoords", "rel", "-imgsize", f"{args.width},{args.height}", "-np", "-sp", args.out
+        "-gtcoords", "rel", "-detcoords", "rel", "-imgsize", f"{args.width},{args.height}", "-np", "-sp", args.out,
+        "-b", str(args.beta_f)
     ])
 
     shutil.rmtree(tmp_gt, ignore_errors=True)
