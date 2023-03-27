@@ -60,6 +60,24 @@ from Evaluator import *
 from utils import BBFormat
 
 
+def array2str(x):
+    return np.array2string(x, formatter={'float': lambda x: f'{x:.2f}'}, separator=', ', max_line_width=1e6)
+
+
+def get_scores_by_conf_th(scores, confs, conf_ths=None):
+    if conf_ths is None:
+        conf_ths = np.append(np.arange(1, 0.00, -0.05), 0.01)
+    best_scores = []
+    for th in conf_ths:
+        try:
+            score = scores[confs >= th][-1]
+        except IndexError:
+            score = 0
+        best_scores.append(score)
+    
+    return np.array(best_scores), conf_ths
+
+
 # Validate formats
 def ValidateFormats(argFormat, argName, errors):
     if argFormat == 'xywh':
@@ -389,6 +407,10 @@ acc_weighted_fbeta = 0
 acc_total_tp = 0
 acc_total_fp = 0
 
+f_scores_thresholded = []
+precision_thresholded = []
+recall_thresholded = []
+
 # Plot Precision x Recall curve
 detections = evaluator.PlotPrecisionRecallCurve(
     allBoundingBoxes,  # Object containing all bounding boxes (ground truths and detections)
@@ -434,27 +456,37 @@ for metricsPerClass in detections:
         acc_total_fp += total_FP
         acc_weighted_f1 += f1_score[-1] * totalPositives
         acc_weighted_fbeta += f_beta_score[-1] * totalPositives
-
-        prec = ['%.2f' % p for p in precision]
-        rec = ['%.2f' % r for r in recall]
-        conf = ['%.2f' % c for c in confidence]
-        fscore = ['%.2f' % f for f in f1_score]
-        fbetascore = ['%.2f' % f for f in f_beta_score]
+        
+        best_scores, conf_ths = get_scores_by_conf_th(f_beta_score, confidence)
+        best_precision, _ = get_scores_by_conf_th(precision, confidence)
+        best_recall, _ = get_scores_by_conf_th(recall, confidence)
+        f_scores_thresholded.append(best_scores)
+        precision_thresholded.append(best_precision)
+        recall_thresholded.append(best_recall)
         
         ap_str = "{0:.2f}%".format(ap * 100)
         f1_str = "{0:.2f}%".format(f1_score[-1] * 100)
         fbeta_str = "{0:.2f}%".format(f_beta_score[-1] * 100)
         print(f"| {cl:<30} | {ap_str:>10} | {f1_str:>10} | {fbeta_str:>10} |")
-        f.write('\n\nClass: %s' % cl)
-        f.write('\nAP          : %s' % ap_str)
-        f.write('\nf1 score    : %s' % f1_str)
-        f.write('\nf_beta score: %s' % fbeta_str)
+        f.write(f'\n\nClass: {cl}')
+        
+        f.write(f'\nAVERAGE')
+        f.write(f'\nAP          : {ap_str}')
+        f.write(f'\nF1 score    : {f1_str}')
+        f.write(f'\nF_beta score: {fbeta_str}')
+        
+        f.write(f'\nGROUPED')
+        f.write(f'\nConfidence ths: {array2str(conf_ths)}')
+        f.write(f'\nF_beta score  : {array2str(best_scores)}')
+        f.write(f'\nPrecision     : {array2str(best_precision)}')
+        f.write(f'\nRecall        : {array2str(best_recall)}')
 
-        f.write('\nPrecision    : %s' % prec)
-        f.write('\nRecall       : %s' % rec)
-        f.write('\nConfidence   : %s' % conf)
-        f.write('\nF1 score     : %s' % fscore)
-        f.write('\nFbeta score  : %s' % fbetascore)
+        f.write(f'\nALL DETECTIONS')
+        f.write(f'\nPrecision     : {array2str(precision)}')
+        f.write(f'\nRecall        : {array2str(recall)}')
+        f.write(f'\nConfidence    : {array2str(confidence)}')
+        f.write(f'\nF1 score      : {array2str(f1_score)}')
+        f.write(f'\nF_beta score  : {array2str(f_beta_score)}')
 
 mAP = acc_AP / validClasses
 
@@ -477,6 +509,16 @@ weighted_fbeta_str = "{0:.2f}%".format(weighted_fbeta * 100)
 global_f1_str = "{0:.2f}%".format(f1_score * 100)
 global_fbeta_str = "{0:.2f}%".format(f_beta_score * 100)
 
+f_scores_thresholded = np.mean(f_scores_thresholded, axis=0)
+recall_thresholded = np.mean(recall_thresholded, axis=0)
+precision_thresholded = np.mean(precision_thresholded, axis=0)
+idxs = np.argsort(f_scores_thresholded)[::-1]
+
+f_scores_thresholded = f_scores_thresholded[idxs]
+recall_thresholded = recall_thresholded[idxs]
+precision_thresholded = precision_thresholded[idxs]
+conf_ths = conf_ths[idxs]
+
 print()
 print(f'{"mAP":<20}: {mAP_str:>10}')
 print(f'{"macro avg f1":<20}: {macro_f1_str:>10}')
@@ -486,10 +528,15 @@ print(f'{"weighted avg f_beta":<20}: {weighted_fbeta_str:>10}')
 print(f'{"global avg f1":<20}: {global_f1_str:>10}')
 print(f'{"global avg f_beta":<20}: {global_fbeta_str:>10}')
 
-f.write('\n\n\nmAP                : %s' % mAP_str)
+f.write('\n\nSUMMARY')
+f.write('\nmAP                : %s' % mAP_str)
 f.write('\nmacro avg f1       : %s' % macro_f1_str)
 f.write('\nmacro avg f_beta   : %s' % macro_fbeta_str)
 f.write('\nweighted avg f1    : %s' % weighted_f1_str)
 f.write('\nweighted avg f_beta: %s' % weighted_fbeta_str)
 f.write('\nglobal avg f1      : %s' % global_f1_str)
 f.write('\nglobal avg f_beta  : %s' % global_fbeta_str)
+f.write(f'\n\nsorted confidence th          : {array2str(conf_ths)}')
+f.write(f'\nsorted macro avg f_beta scores: {array2str(f_scores_thresholded)}')
+f.write(f'\nsorted precision              : {array2str(precision_thresholded)}')
+f.write(f'\nsorted recall                 : {array2str(recall_thresholded)}')
