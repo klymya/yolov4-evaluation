@@ -61,7 +61,7 @@ from utils import BBFormat
 
 
 def array2str(x):
-    return np.array2string(x, formatter={'float': lambda x: f'{x:.2f}'}, separator=', ', max_line_width=1e6)
+    return np.array2string(x, formatter={'float': lambda x: f'{x:.2f}'}, separator=', ', max_line_width=1e9)
 
 
 def get_scores_by_conf_th(scores, confs, conf_ths=None):
@@ -446,16 +446,19 @@ for metricsPerClass in detections:
     f_beta_score = metricsPerClass['f_beta_score']
 
     if totalPositives > 0:
+        f1 = f1_score[-1] if len(f1_score) else 0
+        fbeta = f_beta_score[-1] if len(f_beta_score) else 0
+
         validClasses = validClasses + 1
         acc_AP = acc_AP + ap
-        acc_f1 += f1_score[-1]
-        acc_fbeta += f_beta_score[-1]
+        acc_f1 += f1
+        acc_fbeta += fbeta
         
         acc_total_positives += totalPositives
         acc_total_tp += total_TP
         acc_total_fp += total_FP
-        acc_weighted_f1 += f1_score[-1] * totalPositives
-        acc_weighted_fbeta += f_beta_score[-1] * totalPositives
+        acc_weighted_f1 += f1 * totalPositives
+        acc_weighted_fbeta += fbeta * totalPositives
         
         best_scores, conf_ths = get_scores_by_conf_th(f_beta_score, confidence)
         best_precision, _ = get_scores_by_conf_th(precision, confidence)
@@ -465,8 +468,8 @@ for metricsPerClass in detections:
         recall_thresholded.append(best_recall)
         
         ap_str = "{0:.2f}%".format(ap * 100)
-        f1_str = "{0:.2f}%".format(f1_score[-1] * 100)
-        fbeta_str = "{0:.2f}%".format(f_beta_score[-1] * 100)
+        f1_str = "{0:.2f}%".format(f1 * 100)
+        fbeta_str = "{0:.2f}%".format(fbeta * 100)
         print(f"| {cl:<30} | {ap_str:>10} | {f1_str:>10} | {fbeta_str:>10} |")
         f.write(f'\n\nClass: {cl}')
         
