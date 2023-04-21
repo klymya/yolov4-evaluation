@@ -30,7 +30,7 @@ def convert_gt_file(inpath, outpath, classes):
 def convert_gt_files(inpath, outpath, classes):
     with open(inpath, 'rt') as f:
         inpaths = f.readlines()
-    inpaths = [i.split('.')[0] + '.txt' for i in inpaths]
+    inpaths = [i.split('.')[0] + '.txt' for i in inpaths if i.strip()]
 
     for i in inpaths:
         tmp_outpath = f"{outpath}/{i.split('/')[-1]}"
